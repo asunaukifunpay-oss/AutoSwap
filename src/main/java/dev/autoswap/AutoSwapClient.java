@@ -57,7 +57,7 @@ public final class AutoSwapClient implements ClientModInitializer {
         AutoSwapConfig.setEnabled(value);
         AutoSwapConfig.save();
     }
-    static int getSwapKeyCode() { return swapKey.getBoundKey().getCode(); }
+    static int getSwapKeyCode() { return AutoSwapConfig.getKeyCode(); }
     static void setSwapKeyCode(int code) {
         swapKey.setBoundKey(InputUtil.Type.KEYSYM.createFromCode(code));
         KeyBinding.updateKeysByCode();
