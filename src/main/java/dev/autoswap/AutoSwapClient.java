@@ -61,7 +61,7 @@ public final class AutoSwapClient implements ClientModInitializer {
             return;
         }
 
-        int selected = player.getInventory().getSelectedSlot();
+        int selected = player.getInventory().selectedSlot;
         if (player.getInventory().getStack(selected).isOf(Items.PLAYER_HEAD)) {
             triggerVanillaOffhandSwap();
             swapStatus = "Vanilla offhand swap triggered.";
