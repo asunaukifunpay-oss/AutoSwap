@@ -7,7 +7,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.Items;
-import net.minecraft.screen.slot.SlotActionType;
 import org.lwjgl.glfw.GLFW;
 
 public final class AutoSwapClient implements ClientModInitializer {
@@ -44,28 +43,22 @@ public final class AutoSwapClient implements ClientModInitializer {
         }
 
         var player = client.player;
-        var handler = player.playerScreenHandler;
-        if (player.currentScreenHandler != handler) {
-            swapStatus = "Close the container before swapping.";
-            return;
-        }
-
         if (player.getOffHandStack().isOf(Items.PLAYER_HEAD)) {
             swapStatus = "A Player Head is already in the offhand.";
             return;
         }
 
-        // Keep one ordinary inventory action; the previous two-click sequence
-        // could leave the client/server handler out of sync on some servers.
-        for (int slot = 9; slot <= 44; slot++) {
-            if (handler.getSlot(slot).getStack().isOf(Items.PLAYER_HEAD)) {
-                client.interactionManager.clickSlot(handler.syncId,
-                        slot, 40, SlotActionType.SWAP, player);
-                swapStatus = "Swap action sent; check the server-updated offhand.";
-                return;
-            }
+        // Vanilla F swaps the selected main-hand stack with the offhand.
+        // Reuse the actual vanilla key binding so Minecraft handles the
+        // normal client action and sends its ordinary server packet.
+        int selectedSlot = player.getInventory().getSelectedSlot();
+        if (!player.getInventory().getStack(selectedSlot).isOf(Items.PLAYER_HEAD)) {
+            swapStatus = "Select the hotbar slot containing the Player Head first.";
+            return;
         }
-        swapStatus = "No Player Head found in inventory slots.";
+
+        KeyBinding.onKeyPressed(InputUtil.fromKeyCode(GLFW.GLFW_KEY_F, 0));
+        swapStatus = "Vanilla offhand swap triggered.";
     }
 
     static boolean isEnabled() { return enabled; }
