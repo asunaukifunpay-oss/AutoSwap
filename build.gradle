@@ -1,4 +1,4 @@
-plugins { id 'net.fabricmc.fabric-loom' version '1.9-SNAPSHOT' }
+plugins { id 'fabric-loom' version '1.9-SNAPSHOT' }
 
 version = project.mod_version
 group = project.maven_group
