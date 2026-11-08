@@ -27,7 +27,7 @@ public final class AutoSwapClient implements ClientModInitializer {
                 "key.autoswap.swap_head", InputUtil.Type.KEYSYM,
                 AutoSwapConfig.getKeyCode(), "category.autoswap"));
 
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) client.setScreen(new AutoSwapScreen());
             }
@@ -40,11 +40,15 @@ public final class AutoSwapClient implements ClientModInitializer {
     private static void swapHeadToOffhand(MinecraftClient client) {
         if (client.player == null || client.interactionManager == null || client.currentScreen != null) return;
         var player = client.player;
-        // Slot 45 is the offhand; inventory slots 9-44 cover main inventory and hotbar.
+        // Use the active handler and only swap from the player's own inventory.
+        // START_CLIENT_TICK queues the inventory action before this tick's movement update.
+        var handler = player.currentScreenHandler;
+        if (handler != player.playerScreenHandler) return;
+        // Slot 40 is the offhand swap button; slots 9-44 are inventory + hotbar.
         for (int slot = 9; slot <= 44; slot++) {
-            var stack = player.playerScreenHandler.getSlot(slot).getStack();
+            var stack = handler.getSlot(slot).getStack();
             if (stack.isOf(Items.PLAYER_HEAD)) {
-                client.interactionManager.clickSlot(player.playerScreenHandler.syncId,
+                client.interactionManager.clickSlot(handler.syncId,
                         slot, 40, SlotActionType.SWAP, player);
                 return;
             }
