@@ -14,10 +14,6 @@ public final class AutoSwapClient implements ClientModInitializer {
     private static KeyBinding openMenuKey;
     private static KeyBinding swapKey;
     private static boolean enabled = true;
-
-    // Wait for the server to process the click and send any authoritative inventory correction.
-    private static int verificationTicks = 0;
-    private static boolean awaitingServerUpdate = false;
     private static String swapStatus = "Ready";
 
     @Override
@@ -32,18 +28,6 @@ public final class AutoSwapClient implements ClientModInitializer {
                 AutoSwapConfig.getKeyCode(), "category.autoswap"));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (awaitingServerUpdate && client.player != null) {
-                if (--verificationTicks <= 0) {
-                    // This reads the inventory after a short server-response window.
-                    // Never resend automatically: a rejected action must not be spammed.
-                    boolean confirmed = client.player.getOffHandStack().isOf(Items.PLAYER_HEAD);
-                    swapStatus = confirmed
-                            ? "Head is still in offhand after server update window."
-                            : "Head was not confirmed; the server may have rejected the swap.";
-                    awaitingServerUpdate = false;
-                }
-            }
-
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) client.setScreen(new AutoSwapScreen());
             }
@@ -54,27 +38,32 @@ public final class AutoSwapClient implements ClientModInitializer {
     }
 
     private static void swapHeadToOffhand(MinecraftClient client) {
-        if (client.player == null || client.interactionManager == null
-                || client.currentScreen != null || awaitingServerUpdate) return;
+        if (client.player == null || client.interactionManager == null || client.currentScreen != null) {
+            swapStatus = "Cannot swap right now (screen/player unavailable).";
+            return;
+        }
 
         var player = client.player;
-        var handler = player.currentScreenHandler;
-        if (handler != player.playerScreenHandler) return;
+        var handler = player.playerScreenHandler;
+        if (player.currentScreenHandler != handler) {
+            swapStatus = "Close the container before swapping.";
+            return;
+        }
 
-        // Do not issue a click if the offhand already contains a player head.
-        if (player.getOffHandStack().isOf(Items.PLAYER_HEAD)) return;
+        if (player.getOffHandStack().isOf(Items.PLAYER_HEAD)) {
+            swapStatus = "A Player Head is already in the offhand.";
+            return;
+        }
 
-        // Slot 40 is the offhand swap button; slots 9-44 are inventory + hotbar.
         for (int slot = 9; slot <= 44; slot++) {
             if (handler.getSlot(slot).getStack().isOf(Items.PLAYER_HEAD)) {
                 client.interactionManager.clickSlot(handler.syncId,
                         slot, 40, SlotActionType.SWAP, player);
-                awaitingServerUpdate = true;
-                verificationTicks = 10;
-                swapStatus = "Waiting for server inventory update...";
+                swapStatus = "Swap click sent; server confirmation is not guaranteed.";
                 return;
             }
         }
+        swapStatus = "No Player Head found in inventory slots.";
     }
 
     static boolean isEnabled() { return enabled; }
