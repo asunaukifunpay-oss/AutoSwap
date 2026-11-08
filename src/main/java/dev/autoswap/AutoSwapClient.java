@@ -7,6 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.item.Items;
+import net.minecraft.screen.slot.SlotActionType;
 import org.lwjgl.glfw.GLFW;
 
 public final class AutoSwapClient implements ClientModInitializer {
@@ -14,6 +15,8 @@ public final class AutoSwapClient implements ClientModInitializer {
     private static KeyBinding swapKey;
     private static boolean enabled = true;
     private static String swapStatus = "Ready";
+    private static boolean waitingForHotbarMove;
+    private static int pendingHotbarSlot = -1;
 
     @Override
     public void onInitializeClient() {
@@ -27,6 +30,7 @@ public final class AutoSwapClient implements ClientModInitializer {
                 AutoSwapConfig.getKeyCode(), "category.autoswap"));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            finishPendingSwap(client);
             while (openMenuKey.wasPressed()) {
                 if (client.currentScreen == null) client.setScreen(new AutoSwapScreen());
             }
@@ -43,22 +47,82 @@ public final class AutoSwapClient implements ClientModInitializer {
         }
 
         var player = client.player;
+        var handler = player.playerScreenHandler;
+        if (player.currentScreenHandler != handler) {
+            swapStatus = "Close the container before swapping.";
+            return;
+        }
+        if (waitingForHotbarMove) {
+            swapStatus = "Moving the Player Head into the selected hotbar slot...";
+            return;
+        }
         if (player.getOffHandStack().isOf(Items.PLAYER_HEAD)) {
             swapStatus = "A Player Head is already in the offhand.";
             return;
         }
 
-        // Vanilla F swaps the selected main-hand stack with the offhand.
-        // Reuse the actual vanilla key binding so Minecraft handles the
-        // normal client action and sends its ordinary server packet.
-        int selectedSlot = player.getInventory().getSelectedSlot();
-        if (!player.getInventory().getStack(selectedSlot).isOf(Items.PLAYER_HEAD)) {
-            swapStatus = "Select the hotbar slot containing the Player Head first.";
+        int selected = player.getInventory().getSelectedSlot();
+        if (player.getInventory().getStack(selected).isOf(Items.PLAYER_HEAD)) {
+            triggerVanillaOffhandSwap();
+            swapStatus = "Vanilla offhand swap triggered.";
             return;
         }
 
+        // Find the head in the main inventory or another hotbar slot.
+        for (int slot = 9; slot <= 44; slot++) {
+            if (handler.getSlot(slot).getStack().isOf(Items.PLAYER_HEAD)) {
+                int selectedHandlerSlot = 36 + selected;
+                if (slot == selectedHandlerSlot) {
+                    triggerVanillaOffhandSwap();
+                    swapStatus = "Vanilla offhand swap triggered.";
+                    return;
+                }
+
+                // Use the ordinary inventory SWAP action to move it into the
+                // selected hotbar slot. Wait for the server-updated inventory
+                // before triggering vanilla F on the next client tick.
+                client.interactionManager.clickSlot(handler.syncId, slot,
+                        selected, SlotActionType.SWAP, player);
+                waitingForHotbarMove = true;
+                pendingHotbarSlot = selected;
+                swapStatus = "Moving Player Head to the selected hotbar slot...";
+                return;
+            }
+        }
+        swapStatus = "No Player Head found in inventory.";
+    }
+
+    private static void finishPendingSwap(MinecraftClient client) {
+        if (!waitingForHotbarMove) return;
+        if (client.player == null || client.interactionManager == null) {
+            waitingForHotbarMove = false;
+            pendingHotbarSlot = -1;
+            swapStatus = "Swap cancelled (player unavailable).";
+            return;
+        }
+
+        var player = client.player;
+        if (player.currentScreenHandler != player.playerScreenHandler) {
+            waitingForHotbarMove = false;
+            pendingHotbarSlot = -1;
+            swapStatus = "Swap cancelled (close the container first).";
+            return;
+        }
+
+        if (player.getInventory().getStack(pendingHotbarSlot).isOf(Items.PLAYER_HEAD)) {
+            waitingForHotbarMove = false;
+            pendingHotbarSlot = -1;
+            if (player.getOffHandStack().isOf(Items.PLAYER_HEAD)) {
+                swapStatus = "Player Head is already in the offhand.";
+            } else {
+                triggerVanillaOffhandSwap();
+                swapStatus = "Vanilla offhand swap triggered from inventory.";
+            }
+        }
+    }
+
+    private static void triggerVanillaOffhandSwap() {
         KeyBinding.onKeyPressed(InputUtil.fromKeyCode(GLFW.GLFW_KEY_F, 0));
-        swapStatus = "Vanilla offhand swap triggered.";
     }
 
     static boolean isEnabled() { return enabled; }
