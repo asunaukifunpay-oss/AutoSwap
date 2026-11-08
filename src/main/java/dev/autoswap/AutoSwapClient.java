@@ -42,7 +42,7 @@ public final class AutoSwapClient implements ClientModInitializer {
         var player = client.player;
         // Slot 45 is the offhand; inventory slots 9-44 cover main inventory and hotbar.
         for (int slot = 9; slot <= 44; slot++) {
-            var stack = player.getInventory().getStack(slot);
+            var stack = player.playerScreenHandler.getSlot(slot).getStack();
             if (stack.isOf(Items.PLAYER_HEAD)) {
                 client.interactionManager.clickSlot(player.playerScreenHandler.syncId,
                         slot, 40, SlotActionType.SWAP, player);
