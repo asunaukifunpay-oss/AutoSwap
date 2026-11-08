@@ -55,13 +55,26 @@ public final class AutoSwapClient implements ClientModInitializer {
             return;
         }
 
+        // Vanilla F swaps the selected hotbar slot with the offhand.
+        // If the head is elsewhere, first use the ordinary hotbar SWAP action
+        // to put it in the selected slot, then perform the vanilla offhand SWAP.
+        int selectedHotbar = player.getInventory().selectedSlot;
+        int selectedHandlerSlot = 36 + selectedHotbar;
+
         for (int slot = 9; slot <= 44; slot++) {
-            if (handler.getSlot(slot).getStack().isOf(Items.PLAYER_HEAD)) {
+            if (!handler.getSlot(slot).getStack().isOf(Items.PLAYER_HEAD)) continue;
+
+            if (slot != selectedHandlerSlot) {
+                // Buttons 0-8 exchange the clicked slot with the corresponding hotbar slot.
                 client.interactionManager.clickSlot(handler.syncId,
-                        slot, 40, SlotActionType.SWAP, player);
-                swapStatus = "Swap click sent; server confirmation is not guaranteed.";
-                return;
+                        slot, selectedHotbar, SlotActionType.SWAP, player);
             }
+
+            // Button 40 exchanges the selected hotbar slot with the offhand (vanilla F action).
+            client.interactionManager.clickSlot(handler.syncId,
+                    selectedHandlerSlot, 40, SlotActionType.SWAP, player);
+            swapStatus = "Vanilla-style offhand swap sent; server inventory update will decide the result.";
+            return;
         }
         swapStatus = "No Player Head found in inventory slots.";
     }
