@@ -18,7 +18,7 @@ public final class AutoSwapClient implements ClientModInitializer {
     // Wait for the server to process the click and send any authoritative inventory correction.
     private static int verificationTicks = 0;
     private static boolean awaitingServerUpdate = false;
-    private static boolean expectedOffhandHead = false;
+    private static String swapStatus = "Ready";
 
     @Override
     public void onInitializeClient() {
@@ -36,7 +36,10 @@ public final class AutoSwapClient implements ClientModInitializer {
                 if (--verificationTicks <= 0) {
                     // This reads the inventory after a short server-response window.
                     // Never resend automatically: a rejected action must not be spammed.
-                    expectedOffhandHead = client.player.getOffHandStack().isOf(Items.PLAYER_HEAD);
+                    boolean confirmed = client.player.getOffHandStack().isOf(Items.PLAYER_HEAD);
+                    swapStatus = confirmed
+                            ? "Head is still in offhand after server update window."
+                            : "Head was not confirmed; the server may have rejected the swap.";
                     awaitingServerUpdate = false;
                 }
             }
@@ -68,13 +71,14 @@ public final class AutoSwapClient implements ClientModInitializer {
                         slot, 40, SlotActionType.SWAP, player);
                 awaitingServerUpdate = true;
                 verificationTicks = 10;
-                expectedOffhandHead = false;
+                swapStatus = "Waiting for server inventory update...";
                 return;
             }
         }
     }
 
     static boolean isEnabled() { return enabled; }
+    static String getSwapStatus() { return swapStatus; }
     static void setEnabled(boolean value) {
         enabled = value;
         AutoSwapConfig.setEnabled(value);
