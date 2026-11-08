@@ -60,5 +60,8 @@ public final class AutoSwapScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer,
                 Text.literal("Finds the first Player Head in your inventory and swaps it to offhand."),
                 width / 2, height / 2 + 65, 0xAAAAAA);
+        context.drawCenteredTextWithShadow(textRenderer,
+                Text.literal("Swap status: " + AutoSwapClient.getSwapStatus()),
+                width / 2, height / 2 + 80, 0xFFFF55);
     }
 }
