@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "autoswap",
+  "version": "${version}",
+  "name": "AutoSwap",
+  "description": "Quickly swaps a Player Head from your inventory into your offhand.",
+  "authors": ["AutoSwap contributors"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.autoswap.AutoSwapClient"] },
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": "1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
